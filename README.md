@@ -97,6 +97,18 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step Railway setup instructions.
 
 ---
 
+## ✅ Recommended Workflow
+
+Best default setup: run this as an automated morning prep bot.
+
+- Let the 6:00 AM PST morning prep post the pre-market snapshot plus the high-impact calendar.
+- Let the 6:15 AM PST bias poll run automatically right after.
+- Treat the breaking-news loop as optional until you tune the alert logic for your server.
+
+Why: the morning workflow is the cleanest signal. It gives traders one planned briefing before the open instead of a burst of loosely related headlines during the session.
+
+---
+
 ## 📊 Data Sources
 
 - **Economic Calendar:** Investing.com (3-star events only)

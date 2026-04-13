@@ -15,10 +15,17 @@ from src.utils import create_economic_event_embed, create_daily_bias_embed, crea
 # Load environment variables
 load_dotenv()
 
+
+def _env_to_bool(name: str, default: str = "false") -> bool:
+    """Parse common truthy env var values."""
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
 # Create bot instance
 intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+ENABLE_MESSAGE_CONTENT_INTENT = _env_to_bool("ENABLE_MESSAGE_CONTENT_INTENT", "false")
+BOT_PREFIX = os.getenv("BOT_PREFIX", "!")
+intents.message_content = ENABLE_MESSAGE_CONTENT_INTENT
+bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents)
 
 # Configuration
 try:
@@ -35,6 +42,9 @@ async def on_ready():
     """Called when the bot successfully connects to Discord"""
     print(f"✅ {bot.user} has connected to Discord!")
     print(f"📍 Ready to send market alerts.")
+    if not ENABLE_MESSAGE_CONTENT_INTENT:
+        print("ℹ️ Message content intent is disabled. Prefix commands are disabled.")
+        print("ℹ️ Set ENABLE_MESSAGE_CONTENT_INTENT=true and enable it in Discord Portal to use !commands.")
     
     # Set bot status
     await bot.change_presence(

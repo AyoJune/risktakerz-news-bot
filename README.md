@@ -10,6 +10,7 @@ A **high-impact market alert Discord bot** for traders focused on Nasdaq (NQ) vo
 
 ### 🎯 Pre-Market Catalyst Alerts (6:00 AM PST)
 - Daily scan of high-impact economic events (3-star events only)
+- Optional SearchAPI-backed pre-market snapshot for QQQ, SPY, VIX, and TLT
 - Filters for USD and Nasdaq volatility catalysts
 - Formatted with time, event name, and impact level
 - Daily bias poll: Gauge group sentiment before market open (Bullish/Bearish/Neutral)
@@ -74,6 +75,7 @@ python main.py
 ### Test Commands
 ```
 !ping              # Check if bot is responsive
+!snapshot          # Show SearchAPI-backed market snapshot
 !test_event        # Display sample economic event
 !test_breaking     # Display sample breaking news alert
 !alerts            # Manually trigger pre-market alert
@@ -98,8 +100,22 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step Railway setup instructions.
 ## 📊 Data Sources
 
 - **Economic Calendar:** Investing.com (3-star events only)
-- **Breaking News:** Google News RSS feed with keyword filtering
-- **Market Data:** (Extensible for real-time prices later)
+- **Breaking News:** SearchAPI Google News when configured, otherwise Google News RSS fallback
+- **Market Data:** SearchAPI Google Finance (optional, for QQQ/SPY/VIX/TLT snapshot)
+
+### Optional Market Data API
+
+Add `SEARCHAPI_API_KEY` in your `.env` or Railway Variables to enable API-backed market context.
+
+```dotenv
+SEARCHAPI_API_KEY=your_searchapi_api_key_here
+MARKET_SYMBOLS=QQQ:NYSEARCA,SPY:NYSEARCA,VIX:INDEXCBOE,TLT:NASDAQ
+```
+
+With that set, the bot will:
+- add a pre-market snapshot before the economic calendar alert
+- expose `!snapshot` for a manual tape check
+- summarize the tape as risk-on, risk-off, or mixed
 
 ---
 
@@ -150,7 +166,7 @@ lxml>=4.9.0                # XML parser for RSS feeds
 
 ## 📈 Roadmap
 
-- [ ] Real-time stock price integration
+- [x] API-backed pre-market stock/ETF snapshot
 - [ ] Historical event database
 - [ ] Sentiment analysis on breaking news
 - [ ] Portfolio tracking per trader

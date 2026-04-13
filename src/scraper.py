@@ -15,6 +15,90 @@ import pytz
 TIMEZONE = pytz.timezone("US/Pacific")
 
 
+def _clean_env_value(name: str) -> str | None:
+    """Return a normalized env var value with surrounding quotes removed."""
+    value = os.getenv(name)
+    if value is None:
+        return None
+
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {'"', "'"}:
+        cleaned = cleaned[1:-1].strip()
+
+    return cleaned or None
+
+
+def _to_float(value: str | None) -> float | None:
+    """Convert API string values into floats when possible."""
+    if value in (None, "", "None"):
+        return None
+
+    try:
+        return float(str(value).replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+
+
+def get_market_snapshot() -> List[Dict]:
+    """
+    Fetch a small pre-market snapshot using SearchAPI Google Finance.
+
+    Environment:
+        SEARCHAPI_API_KEY: API key for SearchAPI
+        MARKET_SYMBOLS: Optional comma-separated watchlist
+
+    Returns:
+        List of symbol snapshots with price and change data
+    """
+    api_key = _clean_env_value("SEARCHAPI_API_KEY")
+    if not api_key or api_key == "your_searchapi_api_key_here":
+        return []
+
+    raw_symbols = _clean_env_value("MARKET_SYMBOLS") or "QQQ:NYSEARCA,SPY:NYSEARCA,VIX:INDEXCBOE,TLT:NASDAQ"
+    symbols = [symbol.strip().upper() for symbol in raw_symbols.split(",") if symbol.strip()]
+    snapshot = []
+
+    for raw_symbol in symbols:
+        try:
+            response = requests.get(
+                "https://www.searchapi.io/api/v1/search",
+                params={"engine": "google_finance", "q": raw_symbol, "hl": "en", "api_key": api_key},
+                timeout=10,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("error"):
+                print(f"Market data error for {raw_symbol}: {data.get('message', 'unknown error')}")
+                continue
+
+            summary = data.get("summary") or {}
+            price_change = summary.get("price_change") or {}
+            price = _to_float(summary.get("price"))
+            change = _to_float(price_change.get("amount"))
+            percent_change = _to_float(price_change.get("percentage"))
+
+            if price is None:
+                continue
+
+            symbol = raw_symbol.split(":", 1)[0]
+            snapshot.append(
+                {
+                    "symbol": symbol,
+                    "name": summary.get("title", symbol),
+                    "price": price,
+                    "change": change,
+                    "percent_change": percent_change,
+                }
+            )
+        except requests.exceptions.RequestException as e:
+            print(f"Market data request failed for {raw_symbol}: {e}")
+        except Exception as e:
+            print(f"Unexpected market data error for {raw_symbol}: {e}")
+
+    return snapshot
+
+
 def get_economic_calendar() -> List[Dict]:
     """
     Scrapes high-impact events from Investing.com for the current day.
@@ -120,13 +204,56 @@ def fetch_news_from_api(api_key: str) -> List[Dict]:
 
 def get_breaking_news() -> List[Dict]:
     """
-    Scrapes breaking news from Google News RSS feed.
-    Filters for Nasdaq/Tech volatility keywords.
-    Much faster than HTML scraping - uses RSS feed.
+    Fetch breaking news from SearchAPI Google News when configured,
+    otherwise fall back to Google News RSS.
     
     Returns:
         List of breaking news headlines matching keywords
     """
+    searchapi_key = _clean_env_value("SEARCHAPI_API_KEY")
+    if searchapi_key and searchapi_key != "your_searchapi_api_key_here":
+        try:
+            response = requests.get(
+                "https://www.searchapi.io/api/v1/search",
+                params={
+                    "engine": "google_news",
+                    "q": "Nasdaq futures OR Fed OR Powell OR CPI OR NFP OR earnings",
+                    "location": "New York,United States",
+                    "hl": "en",
+                    "gl": "us",
+                    "api_key": searchapi_key,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("organic_results", [])
+
+            breaking = []
+            for item in results[:5]:
+                title = item.get("title", "").strip()
+                link = item.get("link", "").strip()
+                source = item.get("source", "SearchAPI Google News")
+
+                if not title or not link:
+                    continue
+
+                breaking.append(
+                    {
+                        "title": title,
+                        "link": link,
+                        "source": source,
+                        "timestamp": datetime.now(TIMEZONE),
+                    }
+                )
+
+            if breaking:
+                return breaking
+        except requests.exceptions.RequestException as e:
+            print(f"SearchAPI news request failed: {e}")
+        except Exception as e:
+            print(f"SearchAPI news error: {e}")
+
     url = "https://news.google.com/rss/search?q=Nasdaq+futures+breaking+news&tbs=qdr:h12"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'

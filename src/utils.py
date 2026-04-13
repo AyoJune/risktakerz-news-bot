@@ -125,6 +125,69 @@ def create_breaking_news_embed(title: str, url: str, source: str) -> discord.Emb
     return embed
 
 
+def create_market_snapshot_embed(snapshot: list[dict]) -> discord.Embed:
+    """Create a pre-market market snapshot embed from API quote data."""
+    embed = discord.Embed(
+        title="📊 PRE-MARKET SNAPSHOT",
+        color=discord.Color.from_rgb(255, 0, 0),
+    )
+
+    qqq = next((item for item in snapshot if item.get("symbol") == "QQQ"), None)
+    spy = next((item for item in snapshot if item.get("symbol") == "SPY"), None)
+    vix = next((item for item in snapshot if item.get("symbol") == "VIX"), None)
+
+    if qqq and spy and vix:
+        qqq_pct = qqq.get("percent_change") or 0.0
+        spy_pct = spy.get("percent_change") or 0.0
+        vix_pct = vix.get("percent_change") or 0.0
+
+        if qqq_pct > 0 and spy_pct > 0 and vix_pct <= 0:
+            bias = "Risk-on tape. Growth and index beta are firm while vol is contained."
+        elif qqq_pct < 0 and spy_pct < 0 and vix_pct >= 0:
+            bias = "Risk-off tape. Index pressure is building with vol catching bids."
+        else:
+            bias = "Mixed tape. Let the open confirm whether this is trend or chop."
+
+        embed.description = bias
+    else:
+        embed.description = "API-backed snapshot of the tape before the open."
+
+    for item in snapshot:
+        symbol = item.get("symbol", "?")
+        price = item.get("price")
+        change = item.get("change")
+        percent_change = item.get("percent_change")
+
+        if percent_change is None:
+            trend_emoji = "⚪"
+            change_text = "flat"
+        elif percent_change > 0:
+            trend_emoji = "🟢"
+            change_text = f"+{percent_change:.2f}%"
+        elif percent_change < 0:
+            trend_emoji = "🔴"
+            change_text = f"{percent_change:.2f}%"
+        else:
+            trend_emoji = "⚪"
+            change_text = "0.00%"
+
+        price_text = f"${price:.2f}" if price is not None else "n/a"
+        if change is not None:
+            delta_text = f" ({change:+.2f})"
+        else:
+            delta_text = ""
+
+        embed.add_field(
+            name=f"{trend_emoji} {symbol}",
+            value=f"{price_text}\n{change_text}{delta_text}",
+            inline=True,
+        )
+
+    embed.set_footer(text="RiskTakerZ | API Market Snapshot")
+
+    return embed
+
+
 def truncate_text(text: str, max_length: int = 2000) -> str:
     """
     Truncate text to Discord's message length limit

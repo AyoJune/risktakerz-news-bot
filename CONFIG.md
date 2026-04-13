@@ -283,7 +283,7 @@ A: Currently no, but you could edit `bot.py` to loop through a list of channel I
 A: Use Discord's mobile app or enable push notifications.
 
 **Q: Can I connect to paid APIs for more data?**
-A: Yes! Update `scraper.py` to call APIs like AlphaVantage, IEX Cloud, or Twelve Data.
+A: Yes! Update `scraper.py` to call APIs like SearchAPI Google Finance, AlphaVantage, or IEX Cloud.
 
 **Q: Will these changes break anything?**
 A: No—test locally first, then push. If something breaks, you can roll back via GitHub.

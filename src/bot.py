@@ -5,12 +5,13 @@ RiskTakerZ News Bot - High Impact Market Alerts
 
 import discord
 from discord.ext import commands, tasks
+import hashlib
 import os
 from dotenv import load_dotenv
 from datetime import datetime, time
 import pytz
-from src.scraper import get_economic_calendar, get_breaking_news
-from src.utils import create_economic_event_embed, create_daily_bias_embed, create_breaking_news_embed
+from src.scraper import get_economic_calendar, get_breaking_news, get_market_snapshot
+from src.utils import create_economic_event_embed, create_daily_bias_embed, create_breaking_news_embed, create_market_snapshot_embed
 
 # Load environment variables
 load_dotenv()
@@ -32,6 +33,11 @@ def _clean_env_value(name: str) -> str | None:
         cleaned = cleaned[1:-1].strip()
 
     return cleaned or None
+
+
+def _fingerprint(value: str) -> str:
+    """Return a short, non-reversible fingerprint for diagnostics."""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 # Create bot instance
 intents = discord.Intents.default()
@@ -115,11 +121,21 @@ async def morning_prep():
         return
     
     try:
+        market_snapshot = get_market_snapshot()
         # Fetch high-impact events
         events = get_economic_calendar()
-        
+
+        if market_snapshot:
+            await channel.send(
+                content="**📊 Overnight tape check**",
+                embed=create_market_snapshot_embed(market_snapshot)
+            )
+
         if not events:
-            print("📊 No high-impact events found for today")
+            if not market_snapshot:
+                print("📊 No high-impact events or market snapshot found for today")
+            else:
+                print("📊 No high-impact events found for today")
             return
         
         # Create main alert embed
@@ -270,6 +286,20 @@ async def bias_command(ctx):
     await ctx.send("✅ Bias poll triggered!")
 
 
+@bot.command(name="snapshot")
+async def snapshot_command(ctx):
+    """Display the current API-backed market snapshot."""
+    snapshot = get_market_snapshot()
+    if not snapshot:
+        await ctx.send("⚠️ No market snapshot available. Add SEARCHAPI_API_KEY to enable API-backed market context.")
+        return
+
+    await ctx.send(
+        content="**📊 Live market snapshot**",
+        embed=create_market_snapshot_embed(snapshot)
+    )
+
+
 @bot.command(name="test_event")
 async def test_event(ctx):
     """Test command to display a sample high-impact event"""
@@ -299,6 +329,14 @@ def run():
     token = _clean_env_value("DISCORD_TOKEN")
     if not token or token == "your_token_here":
         raise ValueError("DISCORD_TOKEN not found in environment variables")
+
+    print(
+        "ℹ️ Startup config: "
+        f"token_fp={_fingerprint(token)} "
+        f"token_len={len(token)} "
+        f"alerts_channel_configured={ALERTS_CHANNEL_ID != 0} "
+        f"message_content_intent={ENABLE_MESSAGE_CONTENT_INTENT}"
+    )
 
     try:
         bot.run(token)

@@ -20,6 +20,19 @@ def _env_to_bool(name: str, default: str = "false") -> bool:
     """Parse common truthy env var values."""
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
+
+def _clean_env_value(name: str) -> str | None:
+    """Return a normalized env var value with surrounding quotes removed."""
+    value = os.getenv(name)
+    if value is None:
+        return None
+
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {'"', "'"}:
+        cleaned = cleaned[1:-1].strip()
+
+    return cleaned or None
+
 # Create bot instance
 intents = discord.Intents.default()
 ENABLE_MESSAGE_CONTENT_INTENT = _env_to_bool("ENABLE_MESSAGE_CONTENT_INTENT", "false")
@@ -283,7 +296,13 @@ async def test_breaking(ctx):
 
 def run():
     """Start the bot with the Discord token from environment variables"""
-    token = os.getenv("DISCORD_TOKEN")
-    if not token:
+    token = _clean_env_value("DISCORD_TOKEN")
+    if not token or token == "your_token_here":
         raise ValueError("DISCORD_TOKEN not found in environment variables")
-    bot.run(token)
+
+    try:
+        bot.run(token)
+    except discord.errors.LoginFailure as exc:
+        raise ValueError(
+            "Discord login failed. Check that DISCORD_TOKEN is the current bot token from the Discord Developer Portal and does not include stale or copied credentials."
+        ) from exc

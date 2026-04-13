@@ -93,7 +93,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step Railway setup instructions.
 |------|------|------|
 | **Morning Prep** | 6:00 AM PST | Economic calendar with high-impact events |
 | **Daily Bias Poll** | 6:15 AM PST | React poll: 📈 Bullish / 📉 Bearish / ↔️ Neutral |
-| **Breaking News Monitor** | Every 10 min (during market hours) | Real-time alerts for market-moving news |
+| **Breaking News Monitor** | Configurable (default disabled) | Real-time alerts for market-moving news |
 
 ---
 
@@ -106,6 +106,15 @@ Best default setup: run this as an automated morning prep bot.
 - Treat the breaking-news loop as optional until you tune the alert logic for your server.
 
 Why: the morning workflow is the cleanest signal. It gives traders one planned briefing before the open instead of a burst of loosely related headlines during the session.
+
+To avoid notification spam, keep breaking news disabled unless you intentionally want live headline pushes.
+
+```dotenv
+BREAKING_NEWS_ENABLED=false
+BREAKING_NEWS_INTERVAL_MINUTES=10
+```
+
+If you want live headlines later, set `BREAKING_NEWS_ENABLED=true` and tune `BREAKING_NEWS_INTERVAL_MINUTES`.
 
 ---
 

@@ -22,6 +22,19 @@ def _env_to_bool(name: str, default: str = "false") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_to_int(name: str, default: int) -> int:
+    """Parse integer env vars with fallback to default."""
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    try:
+        return int(value.strip())
+    except ValueError:
+        print(f"⚠️  WARNING: {name} must be an integer. Using {default}.")
+        return default
+
+
 def _clean_env_value(name: str) -> str | None:
     """Return a normalized env var value with surrounding quotes removed."""
     value = os.getenv(name)
@@ -42,6 +55,8 @@ def _fingerprint(value: str) -> str:
 # Create bot instance
 intents = discord.Intents.default()
 ENABLE_MESSAGE_CONTENT_INTENT = _env_to_bool("ENABLE_MESSAGE_CONTENT_INTENT", "false")
+BREAKING_NEWS_ENABLED = _env_to_bool("BREAKING_NEWS_ENABLED", "false")
+BREAKING_NEWS_INTERVAL_MINUTES = max(1, _env_to_int("BREAKING_NEWS_INTERVAL_MINUTES", 10))
 BOT_PREFIX = os.getenv("BOT_PREFIX", "!")
 intents.message_content = ENABLE_MESSAGE_CONTENT_INTENT
 bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents)
@@ -78,8 +93,13 @@ async def on_ready():
         morning_prep.start()
     if not daily_bias_poll.is_running():
         daily_bias_poll.start()
-    if not breaking_news_monitor.is_running():
-        breaking_news_monitor.start()
+    if BREAKING_NEWS_ENABLED:
+        breaking_news_monitor.change_interval(minutes=BREAKING_NEWS_INTERVAL_MINUTES)
+        if not breaking_news_monitor.is_running():
+            breaking_news_monitor.start()
+        print(f"📰 Breaking news monitor enabled every {BREAKING_NEWS_INTERVAL_MINUTES} minutes")
+    else:
+        print("🛑 Breaking news monitor disabled (BREAKING_NEWS_ENABLED=false)")
     
     print("🔄 Background tasks started")
     print("------")
@@ -221,6 +241,9 @@ async def breaking_news_monitor():
     Background task: Checks for breaking news every 10 minutes
     during market hours (6:00 AM - 4:00 PM EST / 3:00 AM - 1:00 PM PST)
     """
+    if not BREAKING_NEWS_ENABLED:
+        return
+
     if ALERTS_CHANNEL_ID == 0:
         return
     

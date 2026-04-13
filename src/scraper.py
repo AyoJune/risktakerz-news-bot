@@ -127,7 +127,7 @@ def get_breaking_news() -> List[Dict]:
     Returns:
         List of breaking news headlines matching keywords
     """
-    url = "https://news.google.com/rss/search?q=Nasdaq+futures+breaking+news"
+    url = "https://news.google.com/rss/search?q=Nasdaq+futures+breaking+news&tbs=qdr:h12"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
